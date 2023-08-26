@@ -20,9 +20,11 @@ for element in soup.body.find_all('h3', class_= 'holiday-title'): # create list 
 #%% convert to df for adding further dims
 holidays_df = pd.DataFrame(holidays, columns= ['holiday_name'])
 
+holidays_df['search_term'] = holidays_df['holiday_name'].str.replace('National Day of ', '').str.replace('National ', '').str.replace('Day of ', '').str.replace(' Day', '').str.replace(' Birthday', '').str.replace('’s', '')
+
 holidays_df['is_birthday'] = holidays_df['holiday_name'].str.contains('Birthday') # is it a birthday?
 
-holidays_df
+print(holidays_df)
 
 #%% remove existing images/dir from prior runs
 dir = 'images'
@@ -35,12 +37,9 @@ for files in os.listdir(dir):
         os.remove(path)
 
 #%% pull top images for search result
-for holiday in holidays_df['holiday_name']:
-    print(holiday)
+for holiday, search in holidays_df[['holiday_name', 'search_term']].values:
+    # print(holiday, ', ', search)
     holiday_dir = 'images/{}'.format(holiday.lower().replace(' ', '_').encode('ascii', 'ignore').decode())
     os.mkdir(holiday_dir)
     
-    downloader.download(holiday, limit= 5, output_dir= holiday_dir, adult_filter_off= True, force_replace= False, timeout= 60, verbose= True)
-    # google_Crawler = GoogleImageCrawler(storage= {'root_dir': r'images'})
-    # google_Crawler.crawl(keyword = holiday, max_num = 1)
-
+    downloader.download(search, limit= 5, output_dir= holiday_dir, adult_filter_off= True, force_replace= False, timeout= 60, verbose= True)
