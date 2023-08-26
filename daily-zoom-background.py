@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-from icrawler.builtin import GoogleImageCrawler
+from bing_image_downloader import downloader
 
 #%% pull holidays from national holiday website
 resp = requests.get('https://nationaltoday.com/what-is-today/') # get request against url
@@ -37,8 +37,10 @@ for files in os.listdir(dir):
 #%% pull top images for search result
 for holiday in holidays_df['holiday_name']:
     print(holiday)
-    os.mkdir('images/{}'.format(holiday.lower().replace(' ', '_').encode('ascii', 'ignore').decode()))
+    holiday_dir = 'images/{}'.format(holiday.lower().replace(' ', '_').encode('ascii', 'ignore').decode())
+    os.mkdir(holiday_dir)
     
+    downloader.download(holiday, limit= 5, output_dir= holiday_dir, adult_filter_off= True, force_replace= False, timeout= 60, verbose= True)
     # google_Crawler = GoogleImageCrawler(storage= {'root_dir': r'images'})
     # google_Crawler.crawl(keyword = holiday, max_num = 1)
 

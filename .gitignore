@@ -160,5 +160,5 @@ cython_debug/
 #.idea/
 
 # project specific ignores
-daily-zoom/
+zoom-env/
 images/
