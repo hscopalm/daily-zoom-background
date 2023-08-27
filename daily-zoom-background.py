@@ -1,16 +1,21 @@
 #%% import libraries
 import os, shutil
+import yaml
 import numpy as np
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 from bing_image_downloader import downloader
 
-#%% set baseline vars
-abs_path = os.getcwd()
+#%% set baseline vars from system, or config if unable
+with open("config.yaml", "r") as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
 
-# set via config file if not automatically gathered
-zoom_bg_folder_path = 'C:\\Users\\hscop\\AppData\\Roaming\\Zoom\\data\\VirtualBkgnd_Custom'
+zoom_custom_path = config['zoom_custom_path']
+birthdays = config['birthdays']
+auto_select = config['auto_select']
+
+abs_path = os.getcwd()
 
 #%% pull holidays from national holiday website
 resp = requests.get('https://nationaltoday.com/what-is-today/') # get request against url
@@ -30,8 +35,16 @@ holidays_df['search_term'] = holidays_df['holiday_name'].str.replace('National D
 
 holidays_df['is_birthday'] = holidays_df['holiday_name'].str.contains('Birthday') # is it a birthday?
 
+# remove birthdays if we turned off in the config.yaml
+holidays_df = holidays_df.loc[~holidays_df['is_birthday'] | birthdays]
+
 #%% remove existing images/dir from prior runs
 dir = 'images'
+
+try:
+    os.mkdir(dir)
+except OSError as error:
+    print(error)   
 
 for files in os.listdir(dir):
     path = os.path.join(dir, files)
@@ -69,10 +82,10 @@ src_bg_path = os.path.join('src_images', '{02D6400C-ABCC-44E4-89C0-242D8C04AE25}
 src_bg_name = os.path.split(src_bg_path)[-1]
 
 # copy src image thumbnail (which we leave constant)
-shutil.copy(src_thumb_path, os.path.join(zoom_bg_folder_path, src_thumb_name))
+shutil.copy(src_thumb_path, os.path.join(zoom_custom_path, src_thumb_name))
 
 # copy src image background (which we will change)
-shutil.copy(src_bg_path, os.path.join(zoom_bg_folder_path, src_bg_name))
+shutil.copy(src_bg_path, os.path.join(zoom_custom_path, src_bg_name))
 
 # find the right file extension
 ext_list = [] # there is an easier way to do this, I am up late and just want something to work quickly
@@ -80,7 +93,8 @@ ext_list = [] # there is an easier way to do this, I am up late and just want so
 for file in os.listdir(os.path.join(dir, user_final_holiday['search_term'])):
     ext_list.append(os.path.splitext(file))
 
-# copy chosen image over provided background
+# which image did you want again? 
 user_final_img_name = 'Image_{img_num}{file_ext}'.format(img_num= user_final_img, file_ext= ext_list[user_final_img - 1][1])
 
-shutil.copy(os.path.join(dir, user_final_holiday['search_term'], user_final_img_name), os.path.join(zoom_bg_folder_path, src_bg_name))
+# copy chosen image over provided background
+shutil.copy(os.path.join(dir, user_final_holiday['search_term'], user_final_img_name), os.path.join(zoom_custom_path, src_bg_name))
