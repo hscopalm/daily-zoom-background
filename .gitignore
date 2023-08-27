@@ -162,3 +162,4 @@ cython_debug/
 # project specific ignores
 zoom-env/
 images/
+config.yaml
