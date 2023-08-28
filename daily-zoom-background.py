@@ -6,6 +6,8 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 from bing_image_downloader import downloader
+# custom scripts
+from img_parser import parse_img
 
 #%% set baseline vars from system, or config if unable
 with open("config.yaml", "r") as f:
@@ -74,8 +76,14 @@ else:
     
 user_final_img = int(input('What is your image choice from the options presented?\n'))
 
+#%% take over images in the "VirtualBkgnd_Default" folder
+img_pairs = parse_img()
+
 #%% set image as background
-src_thumb_path = os.path.join('src_images', '{11327802-0370-488E-9313-FECFB12A49B6}')
+dir = 'VirtualBkgnd_Default'
+bg_path = os.path.join(zoom_custom_path, dir)
+
+src_thumb_path = os.path.join('src_images', '')
 src_thumb_name = os.path.split(src_thumb_path)[-1]
 
 src_bg_path = os.path.join('src_images', '{02D6400C-ABCC-44E4-89C0-242D8C04AE25}')

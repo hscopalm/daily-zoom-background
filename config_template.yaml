@@ -1,6 +1,6 @@
 # the absolute path to your zoom custom background folder (no backslash escaping or quotation needed)
-# For Windows, likely: C:\Users\<user>\AppData\Roaming\Zoom\data\VirtualBkgnd_Custom
-# For Mac, likely: /Users/<user>/Library/Application Support/zoom.us/data/VirtualBkgnd_Custom/
+# For Windows, likely: C:\Users\<user>\AppData\Roaming\Zoom\data
+# For Mac, likely: /Users/<user>/Library/Application Support/zoom.us/data
 zoom_custom_path: <insert path here>
 
 # do you want birthdays to show up at all? 
