@@ -1,0 +1,39 @@
+{
+  "name": "daily-zoom-bg",
+  "version": "1.0.0",
+  "description": "An app to serve as the front end for a python zoom background changer",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hscopalm/daily-zoom-background.git"
+  },
+  "keywords": [
+    "zoom",
+    "background",
+    "daily"
+  ],
+  "author": "Harrison Palmer",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hscopalm/daily-zoom-background/issues"
+  },
+  "homepage": "https://github.com/hscopalm/daily-zoom-background#readme",
+  "devDependencies": {
+    "@electron-forge/cli": "^6.4.2",
+    "@electron-forge/maker-deb": "^6.4.2",
+    "@electron-forge/maker-rpm": "^6.4.2",
+    "@electron-forge/maker-squirrel": "^6.4.2",
+    "@electron-forge/maker-zip": "^6.4.2",
+    "@electron-forge/plugin-auto-unpack-natives": "^6.4.2",
+    "electron": "^26.2.2"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.0"
+  }
+}
