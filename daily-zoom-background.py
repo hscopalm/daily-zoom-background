@@ -1,5 +1,5 @@
 #%% import libraries
-import os, shutil
+import os, shutil, platform
 import yaml
 import numpy as np
 import pandas as pd
@@ -13,7 +13,19 @@ from custom_img_replacement import replace_img
 with open("config.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
-zoom_custom_path = config['zoom_custom_path']
+# if custom path supplied
+if config['zoom_custom_path'] != None:
+    zoom_path = config['zoom_custom_path']
+# if windows
+elif platform.system() == 'Windows':
+    zoom_path = config['zoom_win_path'].format(user= os.getlogin())
+# if mac
+elif platform.system() == 'Darwin':
+    zoom_path = config['zoom_mac_path'].format(user= os.getlogin())
+# if not win/mac
+else:
+    raise ValueError('Non supported OS detected')
+
 birthdays = config['birthdays']
 auto_select = config['auto_select']
 
@@ -86,7 +98,7 @@ for file in os.listdir(os.path.join(dir, user_final_holiday['search_term'])):
 user_final_img_name = 'Image_{img_num}{file_ext}'.format(img_num= user_final_img, file_ext= ext_list[user_final_img - 1][1])
 
 #%% take over images in the "VirtualBkgnd_Default" folder
-img_pair = replace_img()
+img_pair = replace_img(zoom_path)
 
 #%% set image as background
 src_dir = 'src_images'

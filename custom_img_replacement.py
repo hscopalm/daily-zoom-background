@@ -5,22 +5,12 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 
-#%% set baseline vars from system, or config if unable
-with open("config.yaml", "r") as f:
-    config = yaml.load(f, Loader=yaml.FullLoader)
-
-zoom_custom_path = config['zoom_custom_path']
-birthdays = config['birthdays']
-auto_select = config['auto_select']
-
-abs_path = os.getcwd()
-
 #%% define func
-def replace_img():
+def replace_img(zoom_path):
     
     #%% find latest modified custom background
     dir = 'VirtualBkgnd_Custom'
-    bg_path = os.path.join(zoom_custom_path, dir)
+    bg_path = os.path.join(zoom_path, dir)
 
     bg_images = {}
 
@@ -39,8 +29,3 @@ def replace_img():
     img_pair['background'] = sorted_bg_images[1]
     
     return img_pair
-
-#%% run if executed separately
-if __name__ == "__main__":
-    img_pair = replace_img()
-    print(img_pair)
