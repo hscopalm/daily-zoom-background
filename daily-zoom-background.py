@@ -7,7 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 from bing_image_downloader import downloader
 # custom scripts
-from img_parser import parse_img
+from custom_img_replacement import replace_img
 
 #%% set baseline vars from system, or config if unable
 with open("config.yaml", "r") as f:
@@ -76,25 +76,6 @@ else:
     
 user_final_img = int(input('What is your image choice from the options presented?\n'))
 
-#%% take over images in the "VirtualBkgnd_Default" folder
-img_pairs = parse_img()
-
-#%% set image as background
-dir = 'VirtualBkgnd_Default'
-bg_path = os.path.join(zoom_custom_path, dir)
-
-src_thumb_path = os.path.join('src_images', '')
-src_thumb_name = os.path.split(src_thumb_path)[-1]
-
-src_bg_path = os.path.join('src_images', '{02D6400C-ABCC-44E4-89C0-242D8C04AE25}')
-src_bg_name = os.path.split(src_bg_path)[-1]
-
-# copy src image thumbnail (which we leave constant)
-shutil.copy(src_thumb_path, os.path.join(zoom_custom_path, src_thumb_name))
-
-# copy src image background (which we will change)
-shutil.copy(src_bg_path, os.path.join(zoom_custom_path, src_bg_name))
-
 # find the right file extension
 ext_list = [] # there is an easier way to do this, I am up late and just want something to work quickly
 
@@ -104,5 +85,21 @@ for file in os.listdir(os.path.join(dir, user_final_holiday['search_term'])):
 # which image did you want again? 
 user_final_img_name = 'Image_{img_num}{file_ext}'.format(img_num= user_final_img, file_ext= ext_list[user_final_img - 1][1])
 
-# copy chosen image over provided background
-shutil.copy(os.path.join(dir, user_final_holiday['search_term'], user_final_img_name), os.path.join(zoom_custom_path, src_bg_name))
+#%% take over images in the "VirtualBkgnd_Default" folder
+img_pair = replace_img()
+
+#%% set image as background
+src_dir = 'src_images'
+img_dir = os.path.join('images', user_final_holiday['search_term'])
+
+# just replacing both with the same image, no perfect method for determining thumb vs back
+# src_thumb_path = os.path.join(src_dir, 'custom_bg.png')
+src_thumb_path = os.path.join(img_dir, user_final_img_name)
+tgt_thumb_path = img_pair['thumbnail']
+
+src_bg_path = os.path.join(img_dir, user_final_img_name)
+tgt_bg_path = img_pair['background']
+
+#%% copy chosen image over provided background (and thumbnail for now)
+shutil.copy(src_thumb_path, tgt_thumb_path)
+shutil.copy(src_bg_path, tgt_bg_path)

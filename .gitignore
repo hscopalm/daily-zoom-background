@@ -160,6 +160,6 @@ cython_debug/
 #.idea/
 
 # project specific ignores
-zoom-env/
+*env/
 images/
 config.yaml
