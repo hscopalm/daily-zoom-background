@@ -26,16 +26,21 @@ async function getHolidays() {
     // for element in soup.body.find_all('h3', class_= 'holiday-title'): # create list of holidays from tagged elements
     //     holidays.append(element.string)
     
-    const holidays = []
-    
     // find all h3 headers of class 'holiday-title'
-    const headerHolidays = $('h3.holiday-title')
+    const holidays = $('h3.holiday-title')
     
-    // Iterate over each div element with a class of "example" and print its text content
-    headerHolidays.each((i, div) => {
-        console.log($(div).text());
-    });
-
+    return holidays;
+    
 }
 
-getHolidays()
+let holidays = getHolidays()
+console.log(holidays)
+
+let holidaysArr = holidays.then(function(result) {
+    console.log(result.text())
+})
+
+// Iterate over each div element with a class of "example" and print its text content
+holidaysArr.each((i, div) => {
+    console.log($(div).text());
+})
