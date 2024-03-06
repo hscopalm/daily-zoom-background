@@ -32,7 +32,7 @@ auto_select = config['auto_select']
 abs_path = os.getcwd()
 
 #%% pull holidays from national holiday website
-resp = requests.get('https://nationaltoday.com/what-is-today/') # get request against url
+resp = requests.get('https://nationaltoday.com/today/') # get request against url
 html = resp.text # pull html from response
 
 soup = BeautifulSoup(html, 'html.parser') # parse html with bs4
