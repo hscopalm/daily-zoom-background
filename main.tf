@@ -138,6 +138,13 @@ resource "aws_iam_role_policy_attachment" "national_day_lamda_policy_attachment"
   policy_arn = aws_iam_policy.national_day_lambda_iam_policy.arn
 }
 
+# zip the common python env requirments to facilitate a lambda layer
+data "archive_file" "lambda_layer_zip" {
+  type        = "zip"
+  output_path = "${path.module}/.terraform/archive_files/lambda_layer.zip"
+  source_dir  = "${path.module}/national_day_of_venv/lambda_layer_site_packages/"
+}
+
 # zip the lambda function scripts and their dependencies to allow upload to aws lambda
 data "archive_file" "store_national_day_lambda_zip" {
   type        = "zip"
@@ -151,6 +158,20 @@ data "archive_file" "retrieve_national_days_lambda_zip" {
   source_dir  = "${path.module}/retrieve_national_days_lambda_function/"
 }
 
+# create the lambda layer
+resource "aws_lambda_layer_version" "national_day_of_lambda_layer" {
+  layer_name       = "national_day_of_lambda_layer"
+  description      = "The python environment dependencies for the store_national_day, retrieve_national_days, and retrieve_national_day_image lambda functions"
+  filename         = data.archive_file.lambda_layer_zip.output_path
+  source_code_hash = data.archive_file.lambda_layer_zip.output_base64sha256
+
+
+  compatible_runtimes = ["python3.12"]
+  depends_on = [
+    data.archive_file.lambda_layer_zip,
+  ]
+}
+
 # create the store_national_day lambda resource
 resource "aws_lambda_function" "store_national_day_lambda" {
   function_name    = "store_national_day"
@@ -162,6 +183,7 @@ resource "aws_lambda_function" "store_national_day_lambda" {
   architectures    = ["x86_64"]
   timeout          = 10
   depends_on       = [aws_iam_role_policy_attachment.national_day_lamda_policy_attachment]
+  layers           = [aws_lambda_layer_version.national_day_of_lambda_layer.arn]
   source_code_hash = data.archive_file.store_national_day_lambda_zip.output_base64sha256 # ensures terraform recognizes changed to zip payload as changes
 }
 
@@ -176,6 +198,7 @@ resource "aws_lambda_function" "retrieve_national_days_lambda" {
   architectures    = ["x86_64"]
   timeout          = 10
   depends_on       = [aws_iam_role_policy_attachment.national_day_lamda_policy_attachment]
+  layers           = [aws_lambda_layer_version.national_day_of_lambda_layer.arn]
   source_code_hash = data.archive_file.retrieve_national_days_lambda_zip.output_base64sha256 # ensures terraform recognizes changed to zip payload as changes
 }
 
