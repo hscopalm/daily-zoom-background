@@ -115,7 +115,9 @@ data "aws_iam_policy_document" "national_day_lambda_policy_document" {
 
     actions = [
       "s3:GetObject",
-      "s3:PutObject"
+      "s3:PutObject",
+      "s3:ListBucket"
+
     ]
 
     resources = [
@@ -156,6 +158,12 @@ data "archive_file" "retrieve_national_days_lambda_zip" {
   type        = "zip"
   output_path = "${path.module}/.terraform/archive_files/retrieve_national_days.zip"
   source_dir  = "${path.module}/retrieve_national_days_lambda_function/"
+}
+
+data "archive_file" "retrieve_national_day_image_lambda_zip" {
+  type        = "zip"
+  output_path = "${path.module}/.terraform/archive_files/retrieve_national_day_image.zip"
+  source_dir  = "${path.module}/retrieve_national_day_image_lambda_function/"
 }
 
 # create the lambda layer
@@ -202,9 +210,187 @@ resource "aws_lambda_function" "retrieve_national_days_lambda" {
   source_code_hash = data.archive_file.retrieve_national_days_lambda_zip.output_base64sha256 # ensures terraform recognizes changed to zip payload as changes
 }
 
+# create the retrieve_national_day_image lambda resource
+resource "aws_lambda_function" "retrieve_national_day_image_lambda" {
+  function_name    = "retrieve_national_day_image"
+  description      = "Lambda function to retrieve the various 'National Day of...' holidays for today from s3, and return it as a json response"
+  role             = aws_iam_role.national_day_lambda_role.arn
+  filename         = data.archive_file.retrieve_national_day_image_lambda_zip.output_path
+  handler          = "retrieve_national_day_image.lambda_handler"
+  runtime          = "python3.12"
+  architectures    = ["x86_64"]
+  timeout          = 10
+  depends_on       = [aws_iam_role_policy_attachment.national_day_lamda_policy_attachment]
+  layers           = [aws_lambda_layer_version.national_day_of_lambda_layer.arn]
+  source_code_hash = data.archive_file.retrieve_national_day_image_lambda_zip.output_base64sha256 # ensures terraform recognizes changed to zip payload as changes
+}
+
 
 ##################################################################################
 ### next, we create the s3 bucket to store the national holidays
 resource "aws_s3_bucket" "national_day_of_holidays" {
   bucket = "national-day-of-holidays"
+}
+
+
+##################################################################################
+### next, we create the API gateway to support our REST API
+resource "aws_api_gateway_rest_api" "national_day_api" {
+  name        = "national_day_api"
+  description = "A REST API for a variety of methods and responsed related to the 'National Day of...' Holidays"
+
+  endpoint_configuration {
+    types = ["REGIONAL"]
+  }
+}
+
+resource "aws_api_gateway_resource" "root" {
+  rest_api_id = aws_api_gateway_rest_api.national_day_api.id
+  parent_id   = aws_api_gateway_rest_api.national_day_api.root_resource_id
+  path_part   = "mypath"
+}
+
+resource "aws_api_gateway_method" "proxy" {
+  rest_api_id      = aws_api_gateway_rest_api.national_day_api.id
+  resource_id      = aws_api_gateway_resource.root.id
+  http_method      = "POST"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+resource "aws_api_gateway_integration" "lambda_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.national_day_api.id
+  resource_id             = aws_api_gateway_resource.root.id
+  http_method             = aws_api_gateway_method.proxy.http_method
+  integration_http_method = "POST"
+  type                    = "AWS"
+  uri                     = aws_lambda_function.retrieve_national_days_lambda.invoke_arn
+}
+
+resource "aws_api_gateway_method_response" "proxy" {
+  rest_api_id = aws_api_gateway_rest_api.national_day_api.id
+  resource_id = aws_api_gateway_resource.root.id
+  http_method = aws_api_gateway_method.proxy.http_method
+  status_code = "200"
+
+  # cors section
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true,
+    "method.response.header.Access-Control-Allow-Methods" = true,
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "proxy" {
+  rest_api_id = aws_api_gateway_rest_api.national_day_api.id
+  resource_id = aws_api_gateway_resource.root.id
+  http_method = aws_api_gateway_method.proxy.http_method
+  status_code = aws_api_gateway_method_response.proxy.status_code
+
+  # cors
+  # response_parameters = {
+  #   "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+  #   "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT'",
+  #   "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  # }
+
+  depends_on = [
+    aws_api_gateway_method.proxy,
+    aws_api_gateway_integration.lambda_integration
+  ]
+}
+
+resource "aws_api_gateway_deployment" "deployment" {
+  rest_api_id = aws_api_gateway_rest_api.national_day_api.id
+
+  triggers = {
+    redeployment = sha1(jsonencode(aws_api_gateway_rest_api.national_day_api.body))
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on = [
+    aws_api_gateway_integration.lambda_integration,
+    # aws_api_gateway_integration.options_integration,
+  ]
+}
+
+# create the stage for the api
+resource "aws_api_gateway_stage" "v1_stage" {
+  deployment_id = aws_api_gateway_deployment.deployment.id
+  rest_api_id   = aws_api_gateway_rest_api.national_day_api.id
+  stage_name    = "v1"
+}
+
+# create the usage plan for the api
+resource "aws_api_gateway_usage_plan" "national_day_api_usage_plan" {
+  name        = "national_day_api_usage_plan"
+  description = "Usage plan for the national_day_api API gateway and its API keys"
+
+  api_stages {
+    api_id = aws_api_gateway_rest_api.national_day_api.id
+    stage  = aws_api_gateway_stage.v1_stage.stage_name
+  }
+
+  quota_settings {
+    limit  = 1000
+    period = "WEEK"
+  }
+
+  throttle_settings {
+    burst_limit = 5
+    rate_limit  = 10
+  }
+}
+
+##################################################################################
+### next, we create the api gateway roles/policies/applications
+
+# what role will the api gateway act under
+resource "aws_iam_role" "national_day_api_gateway_role" {
+  name               = "national_day_api_gateway_role"
+  description        = "The IAM role for the national_day_api API gateway to act under"
+  assume_role_policy = <<EOF
+{
+ "Version": "2012-10-17",
+ "Statement": [
+   {
+     "Action": "sts:AssumeRole",
+     "Principal": {
+       "Service": "lambda.amazonaws.com"
+     },
+     "Effect": "Allow",
+     "Sid": ""
+   }
+ ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_basic" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  role       = aws_iam_role.national_day_api_gateway_role.name
+}
+
+resource "aws_lambda_permission" "api_gateway_lambda" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.retrieve_national_days_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+
+  source_arn = "${aws_api_gateway_rest_api.national_day_api.execution_arn}/*/*/*"
+}
+
+# to be able to call the api, we have enabled API keys, so we must generate one for use
+resource "aws_api_gateway_api_key" "national_day_api_hpalmer_key" {
+  name = "national_day_api_hpalmer_key"
+}
+
+# attach the api key to the usage plan
+resource "aws_api_gateway_usage_plan_key" "national_day_api_usage_plan_key" {
+  key_id        = aws_api_gateway_api_key.national_day_api_hpalmer_key.id
+  key_type      = "API_KEY"
+  usage_plan_id = aws_api_gateway_usage_plan.national_day_api_usage_plan.id
 }

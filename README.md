@@ -85,6 +85,6 @@ python -m venv national_day_of_venv
 pip install -r requirements.txt
 mkdir .\national_day_of_venv\lambda_layer_site_packages
 mkdir .\national_day_of_venv\lambda_layer_site_packages\python
-pip install -r .\requirements_lambda_layer.txt --target .\national_day_of_venv\lambda_layer_site_packages\
+pip install -r .\requirements_lambda_layer.txt --target .\national_day_of_venv\lambda_layer_site_packages\python\
 pip install -r .\requirements_store_national_day_lambda_function.txt --target .\store_national_day_lambda_function\
 ```
