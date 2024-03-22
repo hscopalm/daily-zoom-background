@@ -1,12 +1,15 @@
+# API key
+api_key=<api-key>
+
 # the absolute path to your zoom custom background folder (no backslash escaping or quotation needed)
 # For Windows, likely: C:\Users\<user>\AppData\Roaming\Zoom\data
-# For Mac, likely: /Users/<user>/Library/Application Support/zoom.us/data
-zoom_custom_path: <insert path here>
+# For Mac, likely=/Users/<user>/Library/Application Support/zoom.us/data
+zoom_custom_path=<insert-path-here>
 
 # do you want birthdays to show up at all? 
 # True if yes, False if no
-birthdays: True # default to True
+birthdays=True
 
 # do you want the app to randomly select a holiday and image?
 # True if yes, False if no
-auto_select: False # default to False
+auto_select=False

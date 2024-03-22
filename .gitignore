@@ -162,7 +162,7 @@ cython_debug/
 # project specific ignores
 *env/
 images/
-config.yaml
+config.*
 electron-app/
 /.terraform
 .terraform.*
