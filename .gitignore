@@ -169,3 +169,4 @@ electron-app/
 terraform.tfstate*
 /*lambda_function/*
 !/*lambda_function/pull_national_day.py
+img/*
