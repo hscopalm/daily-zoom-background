@@ -244,33 +244,87 @@ resource "aws_api_gateway_rest_api" "national_day_api" {
   }
 }
 
-resource "aws_api_gateway_resource" "root" {
+# create both the holidays and the image endpoint resources
+resource "aws_api_gateway_resource" "holidays" {
   rest_api_id = aws_api_gateway_rest_api.national_day_api.id
   parent_id   = aws_api_gateway_rest_api.national_day_api.root_resource_id
-  path_part   = "mypath"
+  path_part   = "holidays"
 }
 
-resource "aws_api_gateway_method" "proxy" {
+resource "aws_api_gateway_resource" "images" {
+  rest_api_id = aws_api_gateway_rest_api.national_day_api.id
+  parent_id   = aws_api_gateway_rest_api.national_day_api.root_resource_id
+  path_part   = "images"
+}
+
+# create the method requests
+resource "aws_api_gateway_method" "holidays_method_request" {
   rest_api_id      = aws_api_gateway_rest_api.national_day_api.id
-  resource_id      = aws_api_gateway_resource.root.id
+  resource_id      = aws_api_gateway_resource.holidays.id
   http_method      = "POST"
   authorization    = "NONE"
   api_key_required = true
 }
 
-resource "aws_api_gateway_integration" "lambda_integration" {
+resource "aws_api_gateway_method" "images_method_request" {
+  rest_api_id      = aws_api_gateway_rest_api.national_day_api.id
+  resource_id      = aws_api_gateway_resource.images.id
+  http_method      = "POST"
+  authorization    = "NONE"
+  api_key_required = true
+}
+
+# create the integration requests to their respective lambdas
+resource "aws_api_gateway_integration" "holidays_integration_request" {
   rest_api_id             = aws_api_gateway_rest_api.national_day_api.id
-  resource_id             = aws_api_gateway_resource.root.id
-  http_method             = aws_api_gateway_method.proxy.http_method
+  resource_id             = aws_api_gateway_resource.holidays.id
+  http_method             = aws_api_gateway_method.holidays_method_request.http_method
   integration_http_method = "POST"
   type                    = "AWS"
+  passthrough_behavior    = "WHEN_NO_TEMPLATES"
   uri                     = aws_lambda_function.retrieve_national_days_lambda.invoke_arn
 }
 
-resource "aws_api_gateway_method_response" "proxy" {
+resource "aws_api_gateway_integration" "images_integration_request" {
+  rest_api_id             = aws_api_gateway_rest_api.national_day_api.id
+  resource_id             = aws_api_gateway_resource.images.id
+  http_method             = aws_api_gateway_method.images_method_request.http_method
+  integration_http_method = "POST"
+  type                    = "AWS"
+  passthrough_behavior    = "WHEN_NO_TEMPLATES"
+  uri                     = aws_lambda_function.retrieve_national_day_image_lambda.invoke_arn
+}
+
+# create the integration responses
+resource "aws_api_gateway_integration_response" "holidays_integration_response" {
   rest_api_id = aws_api_gateway_rest_api.national_day_api.id
-  resource_id = aws_api_gateway_resource.root.id
-  http_method = aws_api_gateway_method.proxy.http_method
+  resource_id = aws_api_gateway_resource.holidays.id
+  http_method = aws_api_gateway_method.holidays_method_request.http_method
+  status_code = aws_api_gateway_method_response.holidays_method_response.status_code
+
+  depends_on = [
+    aws_api_gateway_method.holidays_method_request,
+    aws_api_gateway_integration.holidays_integration_request
+  ]
+}
+
+resource "aws_api_gateway_integration_response" "images_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.national_day_api.id
+  resource_id = aws_api_gateway_resource.images.id
+  http_method = aws_api_gateway_method.images_method_request.http_method
+  status_code = aws_api_gateway_method_response.images_method_response.status_code
+
+  depends_on = [
+    aws_api_gateway_method.images_method_request,
+    aws_api_gateway_integration.images_integration_request
+  ]
+}
+
+# create the method responses
+resource "aws_api_gateway_method_response" "holidays_method_response" {
+  rest_api_id = aws_api_gateway_rest_api.national_day_api.id
+  resource_id = aws_api_gateway_resource.holidays.id
+  http_method = aws_api_gateway_method.holidays_method_request.http_method
   status_code = "200"
 
   # cors section
@@ -281,30 +335,38 @@ resource "aws_api_gateway_method_response" "proxy" {
   }
 }
 
-resource "aws_api_gateway_integration_response" "proxy" {
+resource "aws_api_gateway_method_response" "images_method_response" {
   rest_api_id = aws_api_gateway_rest_api.national_day_api.id
-  resource_id = aws_api_gateway_resource.root.id
-  http_method = aws_api_gateway_method.proxy.http_method
-  status_code = aws_api_gateway_method_response.proxy.status_code
+  resource_id = aws_api_gateway_resource.images.id
+  http_method = aws_api_gateway_method.images_method_request.http_method
+  status_code = "200"
 
-  # cors
-  # response_parameters = {
-  #   "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
-  #   "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT'",
-  #   "method.response.header.Access-Control-Allow-Origin"  = "'*'"
-  # }
-
-  depends_on = [
-    aws_api_gateway_method.proxy,
-    aws_api_gateway_integration.lambda_integration
-  ]
+  # cors section
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true,
+    "method.response.header.Access-Control-Allow-Methods" = true,
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
 }
 
+# deploy the api
 resource "aws_api_gateway_deployment" "deployment" {
   rest_api_id = aws_api_gateway_rest_api.national_day_api.id
 
   triggers = {
-    redeployment = sha1(jsonencode(aws_api_gateway_rest_api.national_day_api.body))
+    redeployment = sha1(jsonencode([
+      aws_api_gateway_rest_api.national_day_api,
+      aws_api_gateway_resource.holidays,
+      aws_api_gateway_resource.images,
+      aws_api_gateway_method.holidays_method_request,
+      aws_api_gateway_method.images_method_request,
+      aws_api_gateway_integration.holidays_integration_request,
+      aws_api_gateway_integration.images_integration_request,
+      aws_api_gateway_integration_response.holidays_integration_response,
+      aws_api_gateway_integration_response.images_integration_response,
+      aws_api_gateway_method_response.holidays_method_response,
+      aws_api_gateway_method_response.images_method_response,
+    ]))
   }
 
   lifecycle {
@@ -312,8 +374,8 @@ resource "aws_api_gateway_deployment" "deployment" {
   }
 
   depends_on = [
-    aws_api_gateway_integration.lambda_integration,
-    # aws_api_gateway_integration.options_integration,
+    aws_api_gateway_integration.holidays_integration_request,
+    aws_api_gateway_integration.images_integration_request,
   ]
 }
 
@@ -374,10 +436,19 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   role       = aws_iam_role.national_day_api_gateway_role.name
 }
 
-resource "aws_lambda_permission" "api_gateway_lambda" {
-  statement_id  = "AllowExecutionFromAPIGateway"
+resource "aws_lambda_permission" "holidays_lambda_integration_permission" {
+  statement_id  = "holidays_lambda_integration_permission"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.retrieve_national_days_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+
+  source_arn = "${aws_api_gateway_rest_api.national_day_api.execution_arn}/*/*/*"
+}
+
+resource "aws_lambda_permission" "images_lambda_integration_permission" {
+  statement_id  = "images_lambda_integration_permission"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.retrieve_national_day_image_lambda.function_name
   principal     = "apigateway.amazonaws.com"
 
   source_arn = "${aws_api_gateway_rest_api.national_day_api.execution_arn}/*/*/*"
