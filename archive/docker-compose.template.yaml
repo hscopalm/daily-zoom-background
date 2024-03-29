@@ -1,0 +1,8 @@
+name: daily-zoom-background
+services:
+    dailyzoombackground:
+        volumes:
+          - {{ zoom_path }}:/app/VirtualBkgnd_Custom
+        tty: true
+        stdin_open: true
+        image: dailyzoombackground:latest
