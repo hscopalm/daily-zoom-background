@@ -1,34 +1,38 @@
-import os, platform, shutil
+import os, platform, shutil, sys
 import requests
-import json
-import json
+import yaml
 import datetime as dt
 from PIL import Image
 import psutil
+from random import randint
 
 
-def read_config(filename):
-    """
-    Read the config file to get the API key and any other configurations set
-    Written without non-standard python libraries to ensure it will work as long as python is installed
-    """
-
-    config = {}
-    with open(filename, "r") as file:
-        for line in file:
-            line = line.strip()
-            if line and not line.startswith("#"):  # Ignore empty lines and comments
-                key, value = line.split("=")
-                config[key.strip()] = value.strip()
-    return config
+def list_files(startpath):
+    for root, dirs, files in os.walk(startpath):
+        level = root.replace(startpath, "").count(os.sep)
+        indent = " " * 4 * (level)
+        print("{}{}/".format(indent, os.path.basename(root)))
+        subindent = " " * 4 * (level + 1)
+        for f in files:
+            print("{}{}".format(subindent, f))
 
 
+print(list_files(os.getcwd()))
+print("\n")
+print("Starting the Zoom background changer...")
+print("Sys args: ")
+print(sys.argv)
+print("\n")
+
+print("-" * 50)
 print("Reading the config file...")
 print("-" * 50)
-config = read_config("config.txt")
+# read the config file
+with open("config.yaml", "r") as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
 
 # set the API key
-if config["api_key"] != "":
+if config["api_key"] != None:
     api_key = config["api_key"]
     print("API key found in config file")
 else:
@@ -40,17 +44,21 @@ auto_select = bool(config["auto_select"] == "True")
 print("Auto select: ", auto_select)
 
 # if custom path supplied
-if config["zoom_custom_path"] != "":
+if config["zoom_custom_path"] != None:
     zoom_path = config["zoom_custom_path"]
 # if windows
 elif platform.system() == "Windows":
-    zoom_path = config["zoom_win_path"].format(user=os.getlogin())
+    zoom_path = r"C:\Users\{user}\AppData\Roaming\Zoom\data".format(user=os.getlogin())
 # if mac
 elif platform.system() == "Darwin":
-    zoom_path = config["zoom_mac_path"].format(user=os.getlogin())
-# if not win/mac
-else:
-    raise ValueError("Non supported OS detected")
+    zoom_path = r"/Users/{user}/Library/Application Support/zoom.us/data".format(
+        user=os.getlogin()
+    )
+# if linux (or container)
+elif platform.system() == "Linux" or os.path.exists("/.dockerenv"):
+    print("Detected that this is running on Linux or in a docker container")
+
+    zoom_path = "/app"
 
 dir = "VirtualBkgnd_Custom"
 bg_path = os.path.join(zoom_path, dir)
@@ -91,7 +99,8 @@ print("\n")
 
 # next, we need to get the user's choice of holiday
 print("-" * 50)
-choice_idx = input("Please enter the number corresponding to your choice of holiday: ")
+choice_idx = randint(0, len(holidays_filt) - 1)
+# choice_idx = input("Please enter the number corresponding to your choice of holiday: ")
 print("\n")
 
 choice_name = holidays[int(choice_idx)]
@@ -147,15 +156,15 @@ print("Image downloaded successfully!")
 print("\n")
 
 # check if zoom is currently running and kill it if so
-for proc in psutil.process_iter():
-    # check whether the process name matches
-    if proc.name() == "Zoom.exe":
-        print("-" * 50)
-        print("Zoom is currently running, closing the application...")
-        proc.kill()
-        print("Zoom closed successfully!")
-        print("\n")
-
+if platform.system() == "Windows" or platform.system() == "Darwin":
+    for proc in psutil.process_iter():
+        # check whether the process name matches
+        if proc.name() == "Zoom.exe":
+            print("-" * 50)
+            print("Zoom is currently running, closing the application...")
+            proc.kill()
+            print("Zoom closed successfully!")
+            print("\n")
 
 print("-" * 50)
 print("Setting the image as your Zoom background...")
