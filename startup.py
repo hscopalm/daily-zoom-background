@@ -15,28 +15,19 @@ volume = "{zoom_path}:/app/VirtualBkgnd_Custom".format(zoom_path=zoom_path)
 
 os.makedirs("log", exist_ok=True)  # create the directory if it doesn't exist
 
-# with open(
-#     "log/output_{ts}.log".format(ts=datetime.now().strftime("%Y%m%d")), "a"
-# ) as output:
-
 client = docker.from_env()
 
-container = client.containers.run(
-    image_name + ":" + tag, volumes=[volume], detach=True, remove=True
-)
+with open(
+    "log/output_{ts}.log".format(ts=datetime.now().strftime("%Y%m%d")), "w"
+) as output_file:
 
-output = container.attach(stdout=True, stream=True, logs=True)
+    container = client.containers.run(
+        image_name + ":" + tag, volumes=[volume], detach=True, remove=True
+    )
 
-for line in output:
-    print(line.decode("utf-8"))
+    output = container.attach(stdout=True, stream=True, logs=True)
 
-
-# img_p = subprocess.run(
-#     r"docker run -i --rm -v {zoom_path}:/app/VirtualBkgnd_Custom -t {image_name}:{tag}".format(
-#         zoom_path=zoom_path, image_name=image_name, tag=tag
-#     ),
-#     text=True,
-#     stdout=subprocess.PIPE,
-#     # stdout=output,
-#     # stderr=output,
-# )
+    for line in output:
+        decoded_line = line.decode("utf-8")
+        print(decoded_line)
+        output_file.write(decoded_line)
